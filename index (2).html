@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Battle Pass Planner — Pacing & Economy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <style>
+    :root{--bg:#f6f8fb;--card:#ffffff;--muted:#6b7280;--accent:#0ea5a3;--accent-2:#2563eb}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#0f172a;margin:0}
+    .wrap{max-width:1100px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;gap:14px}
+    header h1{margin:0;font-size:20px}
+    .tabs{display:flex;gap:8px;margin-top:16px}
+    .tab{background:var(--card);padding:8px 12px;border-radius:8px;cursor:pointer;border:1px solid rgba(15,23,42,0.06)}
+    .tab.active{box-shadow:0 6px 18px rgba(15,23,42,0.06);border-color:var(--accent)}
+    .card{background:var(--card);border-radius:12px;padding:16px;margin-top:14px;box-shadow:0 6px 20px rgba(15,23,42,0.04)}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:18px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type=number], input[type=text], select{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eef6;background:transparent}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #f1f5f9;text-align:left;font-size:13px}
+    th{color:var(--muted);font-weight:600}
+    .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;padding:10px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:600}
+    .muted{color:var(--muted);font-size:13px}
+    .kpiRow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+    .kpi{background:#0f172a;color:white;padding:8px 10px;border-radius:8px;font-weight:600}
+    .chartWrap{padding:12px;background:#fbfdff;border-radius:10px}
+    .inputs{display:flex;flex-direction:column;gap:10px}
+    .small{font-size:12px;color:var(--muted)}
+    .footer{margin-top:12px;font-size:13px;color:var(--muted)}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}.tabs{flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#06b6d4,#2563eb);display:flex;align-items:center;justify-content:center;color:white;font-weight:800">BP</div>
+      <div>
+        <h1>Battle Pass Planner — Reward Pacing & Economy Simulator</h1>
+        <div class="small muted">Two focused tools: Reward Pacing Planner and Economy & Conversion Simulator.</div>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <div class="tab active" id="tabPacing" onclick="showTab('pacing')">Reward Pacing</div>
+      <div class="tab" id="tabEconomy" onclick="showTab('economy')">Economy Simulator</div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn" id="exportPDF">Export PDF</button>
+        <button class="btn" id="exportCSV">Export CSV</button>
+      </div>
+    </div>
+
+    <!-- Pacing Tab -->
+    <div id="pacing" class="card">
+      <div class="grid">
+        <div>
+          <h3 style="margin:0 0 8px 0">Inputs — Reward Pacing</h3>
+          <div class="inputs">
+            <div>
+              <label>Game / Season Name</label>
+              <input id="p_game" type="text" value="Example Season" />
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label>Total Tiers</label>
+                <input id="p_tiers" type="number" value="100" min="10" max="200" />
+              </div>
+              <div style="width:140px">
+                <label>Season Length (weeks)</label>
+                <input id="p_weeks" type="number" value="10" min="4" max="26" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label>Anchor Spacing (tiers)</label>
+                <input id="p_anchor" type="number" value="25" min="5" max="100" />
+              </div>
+              <div style="width:160px">
+                <label>Prestige Tier</label>
+                <input id="p_prestige" type="number" value="100" min="1" max="200" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label>% Cosmetics</label>
+                <input id="p_cosmetic" type="number" value="60" min="0" max="100" />
+              </div>
+              <div style="flex:1">
+                <label>% Currency</label>
+                <input id="p_currency" type="number" value="25" min="0" max="100" />
+              </div>
+              <div style="width:120px">
+                <label>% Boosters</label>
+                <input id="p_boost" type="number" value="15" min="0" max="100" />
+              </div>
+            </div>
+
+            <div>
+              <label class="small">Notes / Designer Goals</label>
+              <input id="p_notes" type="text" placeholder="E.g., focus on casual retention, mid-season event" />
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn" onclick="generatePacing()">Generate Pacing Plan</button>
+              <button class="btn" onclick="resetPacing()">Reset</button>
+            </div>
+
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 8px 0">Reward Pacing Preview</h3>
+          <div class="chartWrap">
+            <canvas id="pacingChart" height="80"></canvas>
+          </div>
+
+          <div style="margin-top:12px">
+            <h4 style="margin:0">Suggested Tier Breakdown (condensed)</h4>
+            <div style="margin-top:8px">
+              <table id="pacingTable"><thead><tr><th>Tier Range</th><th>Reward Type</th><th>Example</th><th>Notes</th></tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Economy Tab -->
+    <div id="economy" class="card" style="display:none">
+      <div class="grid">
+        <div>
+          <h3 style="margin:0 0 8px 0">Inputs — Economy Simulator</h3>
+          <div class="inputs">
+            <div>
+              <label>Estimated MAU (for projection)</label>
+              <input id="e_mau" type="number" value="100000" />
+            </div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label>Pass Price (USD)</label>
+                <input id="e_price" type="number" value="9.99" step="0.01" />
+              </div>
+              <div style="flex:1">
+                <label>% Players Buying Pass</label>
+                <input id="e_conv" type="number" value="6" min="0" max="100" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label>Refund % (value returned across pass)</label>
+                <input id="e_refund" type="number" value="60" min="0" max="100" />
+              </div>
+              <div style="flex:1">
+                <label>Avg Tier Skips Purchased per Buyer</label>
+                <input id="e_skips" type="number" value="3" min="0" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label>Season Length (weeks)</label>
+                <input id="e_weeks" type="number" value="10" min="4" max="26" />
+              </div>
+              <div style="flex:1">
+                <label>Retention Lift from Pass (%)</label>
+                <input id="e_lift" type="number" value="6" min="0" max="100" />
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn" onclick="generateEconomy()">Run Simulation</button>
+              <button class="btn" onclick="resetEconomy()">Reset</button>
+            </div>
+
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 8px 0">Economy Outputs & KPIs</h3>
+          <div class="kpiRow">
+            <div class="kpi" id="kpiRevenue">Revenue: —</div>
+            <div class="kpi" id="kpiARPDAU">ARPDAU: —</div>
+            <div class="kpi" id="kpiBuyers">Buyers: —</div>
+          </div>
+
+          <div style="margin-top:8px">
+            <h4 style="margin:0">Scenario Table</h4>
+            <table id="economyTable"><thead><tr><th>Scenario</th><th>Conversion%</th><th>Revenue</th><th>Notes</th></tr></thead><tbody></tbody></table>
+          </div>
+
+          <div style="margin-top:12px">
+            <h4 style="margin:0">Insights</h4>
+            <div id="econInsights" class="small muted">Run simulation to see suggestions.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Tip: Use the Reward Pacing tab to design an appealing progression; use the Economy tab to check if your pricing & conversion assumptions make business sense. Export CSV/PDF for screenshots.</div>
+  </div>
+
+  <script>
+    // Tabs
+    function showTab(k){document.getElementById('pacing').style.display = (k==='pacing')?'block':'none';document.getElementById('economy').style.display=(k==='economy')?'block':'none';document.getElementById('tabPacing').classList.toggle('active',k==='pacing');document.getElementById('tabEconomy').classList.toggle('active',k==='economy');}
+
+    // Helpers
+    function numberWithCommas(x){return x.toLocaleString();}
+
+    // Pacing generation
+    let pacingChart;
+    function initPacingChart(){const ctx = document.getElementById('pacingChart').getContext('2d');pacingChart = new Chart(ctx,{type:'bar',data:{labels:[],datasets:[{label:'Micro rewards',backgroundColor:'#a7f3d0',data:[]},{label:'Anchor rewards',backgroundColor:'#60a5fa',data:[]} ]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{x:{display:false},y:{display:false}}}})}
+
+    function generatePacing(){
+      const tiers = parseInt(document.getElementById('p_tiers').value)||100;
+      const anchor = parseInt(document.getElementById('p_anchor').value)||25;
+      const prestige = parseInt(document.getElementById('p_prestige').value)||tiers;
+      const cosmetic = clampNum(document.getElementById('p_cosmetic').value,0,100);
+      const currency = clampNum(document.getElementById('p_currency').value,0,100);
+      const boost = clampNum(document.getElementById('p_boost').value,0,100);
+
+      // Build labels and datasets (group into ranges of 5 for clarity)
+      const groupSize = Math.max(1, Math.floor(tiers/40));
+      const groups = [];
+      for(let s=1;s<=tiers;s+=groupSize){ const e = Math.min(tiers,s+groupSize-1); groups.push({start:s,end:e}); }
+      const labels = groups.map(g=>`${g.start}-${g.end}`);
+      const micro = groups.map(g=>0);
+      const anchors = groups.map(g=>0);
+
+      // mark anchors when any tier in group is an anchor
+      for(let t=1;t<=tiers;t++){
+        const isAnchor = (t%anchor===0) || (t===prestige);
+        const gi = Math.floor((t-1)/groupSize);
+        if(isAnchor) anchors[gi] = anchors[gi]+1; else micro[gi] = micro[gi]+1;
+      }
+
+      // normalize for chart display
+      const maxCount = Math.max(...micro.concat(anchors),1);
+      const microNorm = micro.map(v=>v/maxCount*100);
+      const anchorsNorm = anchors.map(v=>v>0?100:0);
+
+      pacingChart.data.labels = labels;
+      pacingChart.data.datasets[0].data = microNorm;
+      pacingChart.data.datasets[1].data = anchorsNorm;
+      pacingChart.update();
+
+      // Construct condensed tier breakdown table
+      const tbody = document.querySelector('#pacingTable tbody'); tbody.innerHTML='';
+      // simple rules: early 1-5 earlyHook, then micro, anchors at spacing, prestige
+      const ranges = [];
+      // first 1-5
+      ranges.push({range:`1-5`,type:'Early Hook (Cosmetic)',example:'Starter skin / avatar',notes:'High immediate value'});
+      // middle ranges until prestige
+      for(let s=6;s<=tiers;s+=anchor){
+        const end = Math.min(s+anchor-1,tiers);
+        // split anchor at end
+        ranges.push({range:`${s}-${end-1}`,type:'Micro / Currency',example:'Coins, small stickers, boosters',notes:'Momentum & frequent rewards'});
+        if(end<=tiers-1){ ranges.push({range:`${end}`,type:'Anchor (Epic Cosmetic)',example:'Epic skin / large currency bundle',notes:'Milestone'}); }
+      }
+      // ensure prestige row
+      if(!ranges.some(r=>r.range.includes(String(prestige)))){
+        ranges.push({range:`${prestige}`,type:'Prestige',example:'Mythic cosmetic + title',notes:'Endgame status'});
+      }
+
+      // populate table
+      ranges.slice(0,12).forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.range}</td><td>${r.type}</td><td>${r.example}</td><td class="small muted">${r.notes}</td>`; tbody.appendChild(tr); });
+
+      // save snapshot for export
+      window._pacing = {tiers,anchor,prestige,cosmetic,currency,boost,ranges,groups};
+    }
+
+    function resetPacing(){document.getElementById('p_game').value='Example Season';document.getElementById('p_tiers').value=100;document.getElementById('p_anchor').value=25;document.getElementById('p_prestige').value=100;document.getElementById('p_cosmetic').value=60;document.getElementById('p_currency').value=25;document.getElementById('p_boost').value=15;generatePacing();}
+
+    function clampNum(v,min,max){const n=parseFloat(v);if(isNaN(n))return min;return Math.max(min,Math.min(max,n));}
+
+    // Economy simulation
+    function generateEconomy(){
+      const MAU = parseInt(document.getElementById('e_mau').value)||100000;
+      const price = parseFloat(document.getElementById('e_price').value)||9.99;
+      const conv = clampNum(document.getElementById('e_conv').value,0,100)/100;
+      const refund = clampNum(document.getElementById('e_refund').value,0,100)/100;
+      const skips = parseFloat(document.getElementById('e_skips').value)||0;
+      const weeks = parseInt(document.getElementById('e_weeks').value)||10;
+      const lift = clampNum(document.getElementById('e_lift').value,0,100)/100;
+
+      const buyers = Math.round(MAU * conv);
+      const revenue = buyers * price + buyers * skips * 0.99; // assume $0.99 per skip
+
+      // ARPDAU estimate: revenue / (MAU * seasonDays)
+      const seasonDays = weeks * 7;
+      const arpday = revenue / (MAU * seasonDays);
+      const arpDau = arpday.toFixed(4);
+
+      // scenarios
+      const scenarios = [ {name:'Best',conv:Math.min(0.25,conv*1.5)},{name:'Median',conv:conv},{name:'Worst',conv:Math.max(0.005,conv*0.6)} ];
+      const tbody = document.querySelector('#economyTable tbody'); tbody.innerHTML='';
+      scenarios.forEach(s=>{
+        const b = Math.round(MAU * s.conv);
+        const r = Math.round(b * price + b * skips * 0.99);
+        const tr = document.createElement('tr'); tr.innerHTML = `<td>${s.name}</td><td>${(s.conv*100).toFixed(2)}%</td><td>$${numberWithCommas(r)}</td><td>${b} buyers</td>`; tbody.appendChild(tr);
+      });
+
+      document.getElementById('kpiRevenue').textContent = 'Revenue: $' + numberWithCommas(Math.round(revenue));
+      document.getElementById('kpiARPDAU').textContent = 'ARPDAU: $' + arpDau;
+      document.getElementById('kpiBuyers').textContent = 'Buyers: ' + numberWithCommas(buyers);
+
+      // insights
+      const insights = [];
+      if(conv < 0.02) insights.push('Conversion is low — focus on stronger early hook rewards and marketing.');
+      if(refund < 0.4) insights.push('Refund low: consider increasing premium currency returns to nudge repurchase.');
+      if(skips > 5) insights.push('High skip purchases suggest players value time — consider including more instant tiers in bundles.');
+      if(lift > 0.08) insights.push('High retention lift — prioritize long-season engagement content.');
+      if(insights.length===0) insights.push('Design assumptions look reasonable — consider A/B tests on price and bundles.' );
+
+      document.getElementById('econInsights').textContent = insights.join(' ');
+
+      // save for export
+      window._economy = {MAU,price,conv,refund,skips,weeks,lift,revenue,buyers,arpDau};
+    }
+
+    function resetEconomy(){document.getElementById('e_mau').value=100000;document.getElementById('e_price').value=9.99;document.getElementById('e_conv').value=6;document.getElementById('e_refund').value=60;document.getElementById('e_skips').value=3;document.getElementById('e_weeks').value=10;document.getElementById('e_lift').value=6;generateEconomy();}
+
+    // Exports: CSV and PDF
+    document.getElementById('exportCSV').addEventListener('click',()=>{
+      const rows = [];
+      // pacing rows
+      if(window._pacing){ rows.push(['Pacing - tiers',window._pacing.tiers]); rows.push(['Pacing - anchor',window._pacing.anchor]); rows.push(['Pacing - prestige',window._pacing.prestige]); }
+      if(window._economy){ rows.push([]); rows.push(['Economy - MAU',window._economy.MAU]); rows.push(['Economy - price',window._economy.price]); rows.push(['Economy - conv',window._economy.conv]); rows.push(['Economy - revenue',window._economy.revenue]); }
+      const csv = rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'}); saveAs(blob,'battlepass_export.csv');
+    });
+
+    document.getElementById('exportPDF').addEventListener('click',async()=>{
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({unit:'pt',format:'a4'});
+      doc.setFontSize(14); doc.text('Battle Pass Plan — Pacing & Economy',40,40);
+      let y=64; doc.setFontSize(10);
+      if(window._pacing){ doc.text('Pacing: tiers '+window._pacing.tiers+'  anchor '+window._pacing.anchor+'  prestige '+window._pacing.prestige,40,y); y+=14; }
+      if(window._economy){ doc.text('Economy: MAU '+numberWithCommas(window._economy.MAU)+'  price $'+window._economy.price+'  revenue $'+numberWithCommas(Math.round(window._economy.revenue||0)),40,y); y+=18; }
+      // add charts as images
+      try{
+        const c1 = document.getElementById('pacingChart').toDataURL('image/png'); doc.addImage(c1,'PNG',40,y,250,110); const c2 = document.getElementById('pacingChart').toDataURL('image/png'); doc.addImage(c2,'PNG',320,y,250,110); y+=130;
+      }catch(e){console.warn('chart export failed',e)}
+      doc.save('battlepass_plan.pdf');
+    });
+
+    // init
+    initPacingChart(); generatePacing(); generateEconomy();
+  </script>
+</body>
+</html>
